@@ -1,0 +1,14 @@
+/front/.DS_Store
+/front/node_modules
+/front/build
+/front/.svelte-kit
+/front/package
+/front/.env
+/front/.env.*
+/front/!.env.example
+/front/vite.config.js.timestamp-*
+/front/vite.config.ts.timestamp-*
+/back/target
+/back/cfg.json
+/front-wasm/target
+models
