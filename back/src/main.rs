@@ -1,5 +1,3 @@
-use std::{net::SocketAddr, sync::Arc, thread::spawn};
-
 use axum::{
     body::Body,
     extract::Host,
@@ -15,11 +13,12 @@ use rustls_acme::{
     axum::AxumAcceptor, caches::DirCache, futures_rustls::rustls::ServerConfig, AcmeConfig,
 };
 use serde::{Deserialize, Serialize};
-use tower::{Layer, ServiceBuilder, ServiceExt};
+use std::{net::SocketAddr, sync::Arc};
+use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-struct Args {
+struct Config {
     front_dir: String,
     onnx_dir: String,
     port: u32,
@@ -27,7 +26,7 @@ struct Args {
     domains: Vec<String>,
 }
 lazy_static! {
-    static ref STATE: Args = serde_json::from_slice(&std::fs::read("cfg.json").unwrap()).unwrap();
+    static ref STATE: Config = serde_json::from_slice(&std::fs::read("cfg.json").unwrap()).unwrap();
 }
 
 #[tokio::main]
@@ -36,9 +35,9 @@ async fn main() {
         "Front directory: {}\nONNX directory: {}\nPort {}...",
         STATE.front_dir, STATE.onnx_dir, STATE.port
     );
-
     check_directories(&STATE.front_dir).await;
     check_directories(&STATE.onnx_dir).await;
+
     let app = Router::new()
         .nest_service("/models/", ServeDir::new(&STATE.onnx_dir))
         .nest_service("/", get(handler));
@@ -46,6 +45,7 @@ async fn main() {
     let acceptor = create_acceptor().await;
     let _ = spawn_server(app, acceptor).await;
 }
+
 async fn spawn_server(app: Router, acceptor: Option<AxumAcceptor>) -> Result<(), std::io::Error> {
     let server = axum_server::bind(
         format!("0.0.0.0:{}", STATE.port)

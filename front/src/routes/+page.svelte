@@ -24,7 +24,16 @@
 	const isDisabled = $derived<boolean>(isLoading || !isIdle || !imgData);
 
 	const handleImgInput = (e: Event) => {
+		if (!isIdle) return;
 		if (e.target.files.length === 0) return;
+		const fileType = e.target.files[0].type;
+		if (
+			fileType.split('/')[0] != 'image' ||
+			!['jpeg', 'jpg', 'png', 'webp'].includes(fileType.split('/')[1])
+		) {
+			alert('유효한 파일을 드롭해 주세요.(.jpg, .jpeg, .png, .webp)');
+			return;
+		}
 		const file = URL.createObjectURL(e.target.files[0]);
 		if (imgData) {
 			const prevData = imgData;
@@ -36,6 +45,7 @@
 	};
 	const handleImgDragNDrop = async (e: DragEvent) => {
 		e.preventDefault();
+		if (!isIdle) return;
 		const dt = e.dataTransfer;
 		if (!dt) return;
 		const files = dt.files;
@@ -95,7 +105,7 @@
 			const orgPng = new Uint8Array(await pngBlob.arrayBuffer());
 			const f32Buffer = u2net_preprocess(orgPng);
 
-			return { orgPng, inputBuffer: f32Buffer, nW, nH };
+			return { orgPng, inputBuffer: f32Buffer };
 		};
 
 		const infer = async (buffer: Float32Array): Promise<Float32Array> => {
@@ -127,9 +137,20 @@
 			document.body.removeChild(tempA);
 		};
 		const handleInference = async () => {
+			const tempImg = new Image();
+			tempImg.src = imgData;
+			await tempImg.decode();
+
+			const nW = tempImg.naturalWidth;
+			const nH = tempImg.naturalHeight;
+
+			if (nW * nH > 16777216) {
+				alert('이미지가 너무 큽니다. 해상도가 더 낮은 이미지를 선택해 주세요.');
+				return;
+			}
 			isIdle = false;
 			await sleep(500);
-			const { orgPng, inputBuffer, nW, nH } = await preprocess();
+			const { orgPng, inputBuffer } = await preprocess();
 			const mask = await infer(inputBuffer);
 			await postproess(mask, orgPng, nW, nH);
 			isIdle = true;
